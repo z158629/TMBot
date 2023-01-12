@@ -1,0 +1,5 @@
+**/__pycache__
+**/data
+**/unknown_errors.txt
+**/*.session-journal
+**/*.session
