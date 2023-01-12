@@ -19,7 +19,7 @@ if not path.exists(TMPDIR):
 if not path.exists(SESSIONDIR):
     mkdir(SESSIONDIR)
 
-SN = 0
+sn = 0
 SESSION = "TMBot"
 prefix = "#"
 api_id = getenv("API_ID")

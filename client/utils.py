@@ -8,7 +8,7 @@ import pkg_resources
 import shutil
 
 from client.app import client as app
-from client.config import logger, DATADIR, BASEDIR, TMPDIR, prefix, SN
+from client.config import logger, DATADIR, BASEDIR, TMPDIR, prefix, sn
 
 from pyrogram import __version__, handlers, filters, Client
 from pyrogram.types import Message
@@ -19,10 +19,11 @@ scheduler = AsyncIOScheduler()
 PIPPARSER = re.compile('''^PIP\s*=\s*["']([\t a-zA-Z0-9_\-=<>!\.]+)["']\s*$''', re.M)
 
 class Modules:
-    def __init__(self, module, dir,type, command, help, doc):
+    def __init__(self, module, dir, type, sn, command, help, doc):
         self.module = module
         self.dir = dir
         self.type = type
+        self.sn = sn
         self.command = command
         self.help = help
         self.doc = doc
@@ -91,7 +92,7 @@ async def loadPlugins():
 plugins: Dict[str, Modules] = {}
 
 def register(func, caller, type, command, minutes, filters, help, doc):
-    global SN
+    global sn
     handler = None
     if type == "xOnCmd":
         module = func.__name__
@@ -102,15 +103,15 @@ def register(func, caller, type, command, minutes, filters, help, doc):
         plugins[module] = {}
     if type == "OnDraft":
         handler = handlers.RawUpdateHandler(caller)
-        app.add_handler(handler, group=SN)
+        app.add_handler(handler, group=sn)
     elif type in ["OnMsg", "OnCmd", "xOnCmd"]:
         handler = handlers.MessageHandler(caller, filters)
-        app.add_handler(handler, group=SN)
+        app.add_handler(handler, group=sn)
     elif type == "OnScheduler":
-        SN = -1000 - SN
-        scheduler.add_job(caller, "interval", minutes=minutes, id=str(SN))
-    plugins[module] = Modules(module, dir, type, command, help, doc)
-    SN += 1
+        sn = -1000 - sn
+        scheduler.add_job(caller, "interval", minutes=minutes, id=str(sn))
+    plugins[module] = Modules(module, dir, type, sn, command, help, doc)
+    sn += 1
 
 def OnScheduler(minutes: int, help: str = '', doc: str = '', version: str = '') -> Callable:
     def decorator(func: Callable) -> Callable:
@@ -302,16 +303,16 @@ async def disable(client, message, __, args, ___):
                     break
             else:
                 if arg == plugins[k].command:
-                    app.remove_handler(plugins[k].handler, plugins[k].id)
+                    app.remove_handler(plugins[k].handler, plugins[k].sn)
                     PluginKey = k
                     break
                 elif arg == plugins[k].module:
                     if plugins[k].type == "OnMsg":
-                        app.remove_handler(plugins[k].handler, plugins[k].id)
+                        app.remove_handler(plugins[k].handler, plugins[k].sn)
                         PluginKey = k
                         break
                     elif plugins[k].type == "OnScheduler":
-                        scheduler.remove_job(str(plugins[k].id))
+                        scheduler.remove_job(str(plugins[k].sn))
                         PluginKey = k
                         break
     if PluginKey:
