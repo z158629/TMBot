@@ -327,12 +327,14 @@ async def disable(client, message, __, args, ___):
     if PluginKey:
         if PluginKey != "xOnCmd":
             plugin = f"{prefix}{plugins[PluginKey].command}" if plugins[PluginKey].command else plugins[PluginKey].module
+            PluginDir = plugins[PluginKey].dir
+            del plugins[PluginKey]
+            del sys.modules[PluginKey]
             if rm == "rm":
-                os.remove(plugins[PluginKey].dir)
+                os.remove(PluginDir)
                 context += f"✓ 成功禁用插件 `{plugin}` 并已经成功删除~"
             else:
                 context += f"✓ 成功禁用插件 `{plugin}`，重新启用请发送 `{prefix}reload`~"
-            del plugins[PluginKey]
     else:
         context += f"✗ 插件 {arg} 禁用失败，请检查 {arg} 是否存在并已启用~"
     await message.edit(context)
