@@ -1,26 +1,23 @@
-import inspect, asyncio, sys, os, re
+import inspect, asyncio, sys, os
 from io import BytesIO
 from typing import Callable, Dict, List
 from packaging.version import parse
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import subprocess
 import pkg_resources
 import shutil
 
 from client.app import client as app
-from client.config import logger, DATADIR, BASEDIR, TMPDIR, prefix, sn
+from client.config import prefix, sn, logger, DATADIR, BASEDIR, TMPDIR, scheduler, PIPPARSER
 
 from pyrogram import __version__, handlers, filters, Client
 from pyrogram.types import Message
 from pyrogram.raw.functions.messages import ClearAllDrafts, SaveDraft
 from pyrogram.raw import types
 
-scheduler = AsyncIOScheduler()
-PIPPARSER = re.compile('''^PIP\s*=\s*["']([\t a-zA-Z0-9_\-=<>!\.]+)["']\s*$''', re.M)
-
 class Modules:
-    def __init__(self, module, dir, type, sn, command, help, doc):
+    def __init__(self, module, handler, dir, type, sn, command, help, doc):
         self.module = module
+        self.handler = handler
         self.dir = dir
         self.type = type
         self.sn = sn
@@ -110,7 +107,7 @@ def register(func, caller, type, command, minutes, filters, help, doc):
     elif type == "OnScheduler":
         sn = -1000 - sn
         scheduler.add_job(caller, "interval", minutes=minutes, id=str(sn))
-    plugins[module] = Modules(module, dir, type, sn, command, help, doc)
+    plugins[module] = Modules(module, handler, dir, type, sn, command, help, doc)
     sn += 1
 
 def OnScheduler(minutes: int, help: str = '', doc: str = '', version: str = '') -> Callable:
@@ -247,7 +244,10 @@ async def install(client, message, _, __, reply):
                 shutil.move(file, f'{DATADIR}/{filename}')
                 sys.path.append(DATADIR)
                 __import__(filename.replace(".py", ""), globals(), locals(), level=0)
+                logger.info(f"Install Plugin: {filename}")
                 await message.edit(f"✓ 安装成功，发送 `{prefix}help {filename.replace('.py','')}` 获取帮助~")
+                if filename.replace(".py", "") in sys.modules:
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
             else:
                 await message.edit("✗ 安装失败~")
         else:
@@ -290,16 +290,18 @@ async def export(client, message, chat_id, args, _):
             context += f"插件 `{arg}` 不存在。"
         await message.edit(context)
 
-@OnCmd("disable", help="禁用插件", doc=f"仅为暂时禁用，重启程序将会重新启用")
+@OnCmd("disable", help="禁用插件", doc=f"默认为暂时禁用，重启将会被启用。若要删除请添加 rm：`{prefix}disable <插件名> rm`")
 async def disable(client, message, __, args, ___):
     PluginKey = ''
     arg = args[0].replace(f"{prefix}", "") if len(args) >= 1 else ''
+    rm = args[1] if len(args) >= 2 else ''
     context = f"`{prefix}disable {arg}` \n\n"
     if arg in PluginsList():
         for k in plugins:
             if plugins[k].type == "xOnCmd":
                 if arg == plugins[k].command:
-                    context = f"系统插件 `{arg}` 将不会被禁用。"
+                    context += f"✗ 系统插件 `{arg}` 将不会被禁用。"
+                    PluginKey = plugins[k].type
                     break
             else:
                 if arg == plugins[k].command:
@@ -316,9 +318,14 @@ async def disable(client, message, __, args, ___):
                         PluginKey = k
                         break
     if PluginKey:
-        plugin = f"{prefix}{plugins[PluginKey].command}" if plugins[PluginKey].command else plugins[PluginKey].module
-        del plugins[PluginKey]
-        context += f"✓ 成功禁用插件 `{plugin}`，重新启用请发送 `{prefix}reload`~"
+        if PluginKey != "xOnCmd":
+            plugin = f"{prefix}{plugins[PluginKey].command}" if plugins[PluginKey].command else plugins[PluginKey].module
+            if rm == "rm":
+                os.remove(plugins[PluginKey].dir)
+                context += f"✓ 成功禁用插件 `{plugin}` 并已经成功删除~"
+            else:
+                context += f"✓ 成功禁用插件 `{plugin}`，重新启用请发送 `{prefix}reload`~"
+            del plugins[PluginKey]
     else:
         context += f"✗ 插件 {arg} 禁用失败，请检查 {arg} 是否存在并已启用~"
     await message.edit(context)
