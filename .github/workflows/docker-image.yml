@@ -25,5 +25,7 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v3
         with:
+          platforms: linux/arm64,linux/amd64
+        with:
           push: true
           tags: noreph/tmbot:latest
