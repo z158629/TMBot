@@ -25,6 +25,10 @@ class Modules:
         self.help = help
         self.doc = doc
 
+def ImportPlugin(plugin):
+    sys.path.append(DATADIR)
+    __import__(plugin, globals(), locals(), level=0)
+
 def GetText(file: str) -> str:
     content = str()
     try:
@@ -70,7 +74,6 @@ def CheckVer(version: str = ''):
         return True
 
 async def loadPlugins():
-    sys.path.append(DATADIR)
     for file in os.listdir(DATADIR):
         if file.endswith('.py'):
             file_ = os.path.join(DATADIR, file)
@@ -78,9 +81,9 @@ async def loadPlugins():
             filename = os.path.basename(file_)
             if await CheckFile(text, file_):
                 try:
-                    __import__(file.replace(".py", ""), globals(), locals(), level=0)
+                    ImportPlugin(file.replace(".py", ""))
                 except Exception as e:
-                    logger.error(e)
+                    logger.error(f"Failed to import: \n{e}")
                 else:
                     logger.info(f"Load Plugin: {filename}")
             else:
@@ -242,12 +245,16 @@ async def install(client, message, _, __, reply):
             text = GetText(file)
             if await CheckFile(text, file):
                 shutil.move(file, f'{DATADIR}/{filename}')
-                sys.path.append(DATADIR)
-                __import__(filename.replace(".py", ""), globals(), locals(), level=0)
-                logger.info(f"Install Plugin: {filename}")
-                await message.edit(f"✓ 安装成功，发送 `{prefix}help {filename.replace('.py','')}` 获取帮助~")
-                if filename.replace(".py", "") in sys.modules:
-                    os.execv(sys.executable, [sys.executable] + sys.argv)
+                flag = bool(filename.replace(".py", "") in sys.modules)
+                try:
+                    ImportPlugin(filename.replace(".py", ""))
+                except Exception as e:
+                    logger.error(f"Failed to import: \n{e}")
+                else:
+                    logger.info(f"Install Plugin: {filename}")
+                    await message.edit(f"✓ 安装成功，发送 `{prefix}help {filename.replace('.py','')}` 获取帮助~")
+                    if flag:
+                        os.execv(sys.executable, [sys.executable] + sys.argv)
             else:
                 await message.edit("✗ 安装失败~")
         else:
@@ -290,7 +297,7 @@ async def export(client, message, chat_id, args, _):
             context += f"插件 `{arg}` 不存在。"
         await message.edit(context)
 
-@OnCmd("disable", help="禁用插件", doc=f"默认为暂时禁用，重启将会被启用。若要删除请添加 rm：`{prefix}disable <插件名> rm`")
+@OnCmd("disable", help="禁用插件", doc=f"默认为暂时禁用，重启将会重新被启用。若要删除请添加 rm：\n`{prefix}disable <插件名> rm`")
 async def disable(client, message, __, args, ___):
     PluginKey = ''
     arg = args[0].replace(f"{prefix}", "") if len(args) >= 1 else ''
