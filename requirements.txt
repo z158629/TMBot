@@ -1,4 +1,4 @@
-Pyrogram == 2.0.97
+Pyrogram
 uvloop
 TgCrypto
 apscheduler
