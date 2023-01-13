@@ -143,6 +143,7 @@ def OnCmd(cmd: str, help: str = '', doc: str = '', version: str = ''):
             if str(func.__module__) == "client.utils":
                 type = "xOnCmd"
             register(func, caller, type, cmd, None, None, help, doc)
+        return caller
     return decorator
 
 def OnDraft(draft: str, help: str = '', doc: str = '', version: str = '', clear: bool=True) -> Callable:
@@ -170,6 +171,7 @@ def OnDraft(draft: str, help: str = '', doc: str = '', version: str = '', clear:
                             await func(client, update, chat_id, args, reply)
         if CheckVer(version):
             register(func, caller, "OnDraft", draft, None, None, help, doc)
+        return caller
     return decorator
 
 def PluginsList():
