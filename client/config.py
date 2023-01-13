@@ -11,6 +11,7 @@ SESSION = "TMBot"
 prefix = "#"
 api_id = getenv("API_ID")
 api_hash = getenv("API_HASH")
+bot_token = getenv("BOT_TOKEN")
 
 BASEDIR = path.abspath(path.dirname(path.dirname(__file__)))
 DATADIR =  path.join(BASEDIR, "data")
