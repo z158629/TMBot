@@ -11,12 +11,15 @@ SESSION = "TMBot"
 prefix = "#"
 api_id = getenv("API_ID")
 api_hash = getenv("API_HASH")
-bot_token = getenv("BOT_TOKEN")
 
 BASEDIR = path.abspath(path.dirname(path.dirname(__file__)))
 DATADIR =  path.join(BASEDIR, "data")
 TMPDIR = path.join(DATADIR, "tmp")
 SESSIONDIR = path.join(DATADIR, "session")
+
+scheduler = AsyncIOScheduler()
+
+PIPPARSER = re.compile('''^PIP\s*=\s*["']([\t a-zA-Z0-9_\-=<>!\.]+)["']\s*$''', re.M)
 
 class Formatter(logging.Formatter):
     def format(self, record):
@@ -54,7 +57,3 @@ if not path.exists(SESSIONDIR):
 
 if api_id is None or api_hash is None:
     exit(logger.error("缺少 API！"))
-
-scheduler = AsyncIOScheduler()
-
-PIPPARSER = re.compile('''^PIP\s*=\s*["']([\t a-zA-Z0-9_\-=<>!\.]+)["']\s*$''', re.M)
