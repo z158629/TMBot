@@ -7,12 +7,17 @@ import pkg_resources
 import shutil
 
 from client.app import client as app
-from client.config import prefix, sn, logger, DATADIR, BASEDIR, TMPDIR, scheduler, PIPPARSER
+from client.config import prefix, sn, logger, DATADIR, BASEDIR, TMPDIR, PIPPARSER
 
 from pyrogram import __version__, handlers, filters, Client
 from pyrogram.types import Message
 from pyrogram.raw.functions.messages import ClearAllDrafts, SaveDraft
 from pyrogram.raw import types
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+scheduler = AsyncIOScheduler()
 
 class Modules:
     def __init__(self, module, handler, dir, type, sn, command, help, doc):
@@ -42,48 +47,43 @@ async def InstallDependency(missing):
     try:
         if subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--root-user-action=ignore', *missing]) == 0:
             return True
-        else:
-            return False
     except:
         return False
 
-async def CheckFile(text, file):
-    flag = True
-    packages = PIPPARSER.findall(text)
-    if not ((text.find("@OnCmd") > -1 or text.find("@OnDraft") > -1 or text.find("@OnMsg") > -1 or text.find("@OnScheduler") > -1) and text.find("client.utils") > -1):
-        logger.error(f"Invalid Plugin: {file}")
-        flag = False
-    if packages and flag:
+async def CheckFile(content, plugin):
+    packages = PIPPARSER.findall(content)
+    if not ((content.find("@OnCmd") > -1 or content.find("@OnDraft") > -1 or content.find("@OnMsg") > -1 or content.find("@OnScheduler") > -1) and content.find("client.utils") > -1):
+        logger.error(f"Invalid Plugin: {plugin}")
+        return False
+    if packages:
         packages = packages[-1].strip().split()
         required = set(packages)
         installed = {pkg.key for pkg in pkg_resources.working_set}
         missing = required - installed
         if missing:
             if not await InstallDependency(missing):
-                logger.error(f"Dependency installation failed: {file} - {packages}")
-                flag = False
-    return flag
+                logger.error(f"Dependency installation failed: {plugin} - {packages}")
+                return False
+    return True
 
 def CheckVer(version: str = ''):
     if version:
         if parse(version) <= parse(__version__.replace("v", "")):
             return True
-        else:
-            return False
     else:
         return True
 
 async def loadPlugins():
     for file in os.listdir(DATADIR):
         if file.endswith('.py'):
-            file_ = os.path.join(DATADIR, file)
-            text = GetText(file_)
-            filename = os.path.basename(file_)
-            if await CheckFile(text, file_):
+            plugin = os.path.join(DATADIR, file)
+            content = GetText(plugin)
+            filename = os.path.basename(plugin)
+            if await CheckFile(content, plugin):
                 try:
                     ImportPlugin(file.replace(".py", ""))
                 except Exception as e:
-                    logger.error(f"Failed to import: \n{e}")
+                    logger.error(f"Failed to import: {filename}\n{e}")
                 else:
                     logger.info(f"Load Plugin: {filename}")
             else:
@@ -91,7 +91,7 @@ async def loadPlugins():
 
 plugins: Dict[str, Modules] = {}
 
-def register(func, caller, type, command, minutes, filters, help, doc):
+def register(func, caller, type, command, cron, filters, help, doc):
     global sn
     handler = None
     if type == "xOnCmd":
@@ -109,15 +109,15 @@ def register(func, caller, type, command, minutes, filters, help, doc):
         app.add_handler(handler, group=sn)
     elif type == "OnScheduler":
         sn = -1000 - sn
-        scheduler.add_job(caller, "interval", minutes=minutes, id=str(sn))
+        scheduler.add_job(caller, CronTrigger.from_crontab(cron, 'UTC'), id=str(sn))
     plugins[module] = Modules(module, handler, dir, type, sn, command, help, doc)
     sn += 1
 
-def OnScheduler(minutes: int, help: str = '', doc: str = '', version: str = '') -> Callable:
+def OnScheduler(cron: str, help: str = '', doc: str = '', version: str = '') -> Callable:
     def decorator(func: Callable) -> Callable:
         if CheckVer(version):
             logger.info(f"OnScheduler: {func.__module__}")
-            register(func, func, "OnScheduler", None, minutes, None, help, doc)
+            register(func, func, "OnScheduler", None, cron, None, help, doc)
     return decorator
 
 def OnMsg(filters: filters = None, help: str = '', doc: str = '', version: str = '') -> Callable:

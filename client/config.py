@@ -4,7 +4,6 @@ import logging
 import shutil
 from sys import exit
 from os import path, mkdir, getenv
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 sn = 0
 SESSION = "TMBot"
@@ -16,8 +15,6 @@ BASEDIR = path.abspath(path.dirname(path.dirname(__file__)))
 DATADIR =  path.join(BASEDIR, "data")
 TMPDIR = path.join(DATADIR, "tmp")
 SESSIONDIR = path.join(DATADIR, "session")
-
-scheduler = AsyncIOScheduler()
 
 PIPPARSER = re.compile('''^PIP\s*=\s*["']([\t a-zA-Z0-9_\-=<>!\.]+)["']\s*$''', re.M)
 
@@ -32,7 +29,7 @@ class Formatter(logging.Formatter):
                 logging.FATAL: 31,
                 logging.DEBUG: 36
             }.get(record.levelno, 0)
-            self._style._fmt = f"%(asctime)s - \033[{color}m%(levelname)s\033[0m - %(name)s - (%(filename)s:%(lineno)d) : %(message)s"
+            self._style._fmt = f"%(asctime)s - \033[{color}m%(levelname)s\033[0m - %(name)s : %(message)s"
         return super().format(record)
 
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
