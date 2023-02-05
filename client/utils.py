@@ -182,7 +182,14 @@ def PluginsList():
         plugins_list.append(plugins[k].module)
     return plugins_list
 
-@OnCmd("reload", help="重启")
+async def delcmd(message):
+    await asyncio.sleep(10)
+    try:
+        await message.delete()
+    except:
+        pass
+
+@OnCmd("reload", help="重启 bot")
 async def reload(_, message, __, ___, ____):
     await message.delete()
     os.execv(sys.executable, [sys.executable] + sys.argv)
@@ -235,6 +242,7 @@ async def help(_, message, __, args, ___):
     elif arg not in PluginsList():
         context = f"✗ㅤ插件 `{arg}` 不存在~"
     await message.edit(context)
+    await delcmd(message)
 
 @OnCmd("install", help="安装插件")
 async def install(client, message, _, __, reply):
@@ -251,7 +259,9 @@ async def install(client, message, _, __, reply):
                 try:
                     ImportPlugin(filename.replace(".py", ""))
                 except Exception as e:
+                    os.remove(f'{DATADIR}/{filename}')
                     logger.error(f"Failed to import: \n{e}")
+                    await message.edit(f"✗ 安装失败~\n{e}")
                 else:
                     logger.info(f"Install Plugin: {filename}")
                     await message.edit(f"✓ 安装成功，发送 `{prefix}help {filename.replace('.py','')}` 获取帮助~")
@@ -259,10 +269,13 @@ async def install(client, message, _, __, reply):
                         os.execv(sys.executable, [sys.executable] + sys.argv)
             else:
                 await message.edit("✗ 安装失败~")
+                await delcmd(message)
         else:
             await message.edit("✗ 请回复一个 python 文件来安装！")
+            await delcmd(message)
     else:
         await message.edit("✗ 请回复一个 python 文件来安装！")
+        await delcmd(message)
 
 ExportDoc=f"导出某个插件：`{prefix}export <插件名>`\n导出全部：`{prefix}export all`"
 @OnCmd("export", help="导出插件", doc=ExportDoc)
@@ -298,6 +311,7 @@ async def export(client, message, chat_id, args, _):
         else:
             context += f"插件 `{arg}` 不存在。"
         await message.edit(context)
+        await delcmd(message)
 
 @OnCmd("disable", help="禁用插件", doc=f"默认为暂时禁用，重启将会重新被启用。若要删除请添加 rm：\n`{prefix}disable <插件名> rm`")
 async def disable(client, message, __, args, ___):
@@ -332,11 +346,16 @@ async def disable(client, message, __, args, ___):
             PluginDir = plugins[PluginKey].dir
             del plugins[PluginKey]
             del sys.modules[PluginKey]
+            os.execv(sys.executable, [sys.executable] + sys.argv)
             if rm == "rm":
                 os.remove(PluginDir)
                 context += f"✓ 成功禁用插件 `{plugin}` 并已经成功删除~"
             else:
                 context += f"✓ 成功禁用插件 `{plugin}`，重新启用请发送 `{prefix}reload`~"
     else:
-        context += f"✗ 插件 {arg} 禁用失败，请检查 {arg} 是否存在并已启用~"
+        if PluginKey == '':
+            context += f"请在指令后添加要禁用的插件，或发送 `{prefix}help disable` 获取帮助~"
+        else:
+            context += f"✗ 插件 {arg} 禁用失败，请检查 {arg} 是否存在并已启用~"
     await message.edit(context)
+    await delcmd(message)
