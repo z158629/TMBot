@@ -29,7 +29,7 @@ class Formatter(logging.Formatter):
                 logging.FATAL: 31,
                 logging.DEBUG: 36
             }.get(record.levelno, 0)
-            self._style._fmt = f"%(asctime)s - \033[{color}m%(levelname)s\033[0m - %(name)s : %(message)s"
+            self._style._fmt = f"[%(name)s] - %(asctime)s - \033[{color}m%(levelname)s\033[0m: %(message)s"
         return super().format(record)
 
 logging.getLogger("pyrogram").setLevel(logging.WARNING)
