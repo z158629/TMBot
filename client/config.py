@@ -21,7 +21,7 @@ PIPPARSER = re.compile('''^PIP\s*=\s*["']([\t a-zA-Z0-9_\-=<>!\.]+)["']\s*$''', 
 class Formatter(logging.Formatter):
     def format(self, record):
         if record.levelno == logging.INFO:
-            self._style._fmt = "%(asctime)s - %(levelname)s - %(name)s : %(message)s"
+            self._style._fmt = "[%(name)s] - %(asctime)s - %(levelname)s: %(message)s"
         else:
             color = {
                 logging.WARNING: 33,
