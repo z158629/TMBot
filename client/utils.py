@@ -240,7 +240,7 @@ async def help(_, message, __, args, ___):
                     context += f"指令：`{prefix}{plugins[k].command}`\n\n"
                 context += f"{plugins[k].help}\n\n{plugins[k].doc}"
                 if plugins[k].type == "OnDraft":
-                    context += "\n\n__此指令为草稿指令，即指令输入在输入框里存为草稿不必发出。"
+                    context += "\n__此指令为草稿指令，即指令输入在输入框里存为草稿不必发出__"
     elif arg not in PluginsList():
         context = f"✗ㅤ插件 `{arg}` 不存在~"
     await message.edit(context)
