@@ -2,3 +2,5 @@ Pyrogram
 uvloop
 TgCrypto
 apscheduler
+aiohttp
+bs4

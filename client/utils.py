@@ -1,10 +1,14 @@
-import inspect, asyncio, sys, os
-from io import BytesIO
-from typing import Callable, Dict, List
-from packaging.version import parse
+import sys, os, re
 import subprocess
 import pkg_resources
 import shutil
+import aiohttp
+import inspect
+import asyncio
+import json
+from typing import Callable, Dict, List
+from packaging.version import parse
+from bs4 import BeautifulSoup
 
 from client.app import client as app
 from client.config import prefix, sn, logger, DATADIR, BASEDIR, TMPDIR, PIPPARSER
@@ -361,3 +365,72 @@ async def disable(client, message, __, args, ___):
             context += f"✗ 插件 {arg} 禁用失败，请检查 {arg} 是否存在并已启用~"
     await message.edit(context)
     await delcmd(message)
+
+@OnCmd("plist", help="在线插件管理", doc=f"`{prefix}plist` 获取可用插件列表\n`{prefix}plist install <插件名>` 安装插件\n`{prefix}plist install all` 安装所有可用插件")
+async def disable(client, message, __, args, ___):
+    arg = args[0] if len(args) > 0 else 'list'
+    if arg not in ['list', 'install']:
+        await message.edit("参数不正确...")
+        return
+    if arg == 'install' and len(args) <= 1:
+        await message.edit("缺少参数...")
+        return
+    await message.edit("获取插件列表中...")
+    plist = {}
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f'https://github.com/noreph/TMBot-Plugins') as resp:
+            if resp.status == 200:
+                soup = BeautifulSoup(await resp.text(), 'html.parser')
+                a_tags = soup.find_all('a')
+                urls = ['https://raw.githubusercontent.com'+ re.sub('/blob', '', link.get('href')) 
+                            for link in a_tags if '.py' in link.get('href')]
+                for i in urls:
+                    DESPARSER = re.compile('''(?<=(help\=('|"))).+?(?=('|"))''', re.M)
+                    PPARSER = re.compile('''(?<=(main\/)).+?(?=\.py)''', re.M)
+                    async with session.get(i) as r:
+                        des = DESPARSER.search(await r.text()).group()
+                    p = PPARSER.search(i).group()
+                    plist[p] = {'url': i, 'des': des}
+
+            if resp.status != 200 or not bool(plist):
+                await message.edit("获取插件列表失败...")
+                return
+
+    p_list = list(plist.keys())
+
+    if arg == 'list':
+        content = ''
+        for i in p_list:
+            content += f"`{i}`：{plist[i]['des']}\n"
+        await message.edit(f"可用插件列表：\n{content}")
+    elif arg == 'install':
+        if args[1] != 'all':
+            if args[1] not in p_list:
+                await message.edit(f"插件 {args[1]} 不存在...")
+                return
+
+        async def install(p):
+            async with aiohttp.ClientSession() as session:
+                async with session.get(plist[p]['url']) as resp:
+                    if resp.status == 200:
+                        with open(f'{DATADIR}/{p}.py', "w") as f:
+                            f.write(await resp.text('utf-8'))
+                        ImportPlugin(p)
+                        return True
+
+        if args[1] == 'all':
+            for i in p_list:
+                await message.edit(f"正在安装`{i}`...")
+                if await install(i):
+                   await message.edit(f"✓ 安装成功，发送 `{prefix}help {i}` 获取帮助~")
+                else:
+                    await message.edit(f"✗ 插件 {i} 安装失败~")
+                await asyncio.sleep(3)
+            await message.edit(f"✓ 插件安装完成，发送 `{prefix}help` 获取帮助~")
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        else:
+            await message.edit(f"正在安装`{args[1]}`...")
+            if await install(args[1]):
+                await message.edit(f"✓ 安装成功，发送 `{prefix}help {args[1]}` 获取帮助~")
+                if bool(args[1] in sys.modules):
+                    os.execv(sys.executable, [sys.executable] + sys.argv)
