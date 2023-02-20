@@ -186,13 +186,6 @@ def PluginsList():
         plugins_list.append(plugins[k].module)
     return plugins_list
 
-async def delcmd(message):
-    await asyncio.sleep(60)
-    try:
-        await message.delete()
-    except:
-        pass
-
 @OnCmd("reload", help="重启 bot")
 async def reload(_, message, __, ___, ____):
     await message.delete()
@@ -248,7 +241,6 @@ async def help(_, message, __, args, ___):
     elif arg not in PluginsList():
         context = f"✗ㅤ插件 `{arg}` 不存在~"
     await message.edit(context)
-    await delcmd(message)
 
 @OnCmd("install", help="安装插件")
 async def install(client, message, _, __, reply):
@@ -275,13 +267,10 @@ async def install(client, message, _, __, reply):
                         os.execv(sys.executable, [sys.executable] + sys.argv)
             else:
                 await message.edit("✗ 安装失败~")
-                await delcmd(message)
         else:
             await message.edit("✗ 请回复一个 python 文件来安装！")
-            await delcmd(message)
     else:
         await message.edit("✗ 请回复一个 python 文件来安装！")
-        await delcmd(message)
 
 ExportDoc=f"导出某个插件：`{prefix}export <插件名>`\n导出全部：`{prefix}export all`"
 @OnCmd("export", help="导出插件", doc=ExportDoc)
@@ -317,7 +306,6 @@ async def export(client, message, chat_id, args, _):
         else:
             context += f"插件 `{arg}` 不存在。"
         await message.edit(context)
-        await delcmd(message)
 
 @OnCmd("disable", help="禁用插件", doc=f"默认为暂时禁用，重启将会重新被启用。若要删除请添加 rm：\n`{prefix}disable <插件名> rm`")
 async def disable(client, message, __, args, ___):
@@ -364,7 +352,6 @@ async def disable(client, message, __, args, ___):
         else:
             context += f"✗ 插件 {arg} 禁用失败，请检查 {arg} 是否存在并已启用~"
     await message.edit(context)
-    await delcmd(message)
 
 @OnCmd("plist", help="在线插件管理", doc=f"`{prefix}plist` 获取可用插件列表\n`{prefix}plist install <插件名>` 安装插件\n`{prefix}plist install all` 安装所有可用插件")
 async def disable(client, message, __, args, ___):
@@ -416,20 +403,24 @@ async def disable(client, message, __, args, ___):
                         with open(f'{DATADIR}/{p}.py', "w") as f:
                             f.write(await resp.text('utf-8'))
                         ImportPlugin(p)
+                        await asyncio.sleep(1)
                         return True
 
         if args[1] == 'all':
+            content = "安装插件中...\n"
             for i in p_list:
-                await message.edit(f"正在安装`{i}`...")
+                content += f"正在安装插件 `{i}`...\n"
+                await message.edit(content)
                 if await install(i):
-                   await message.edit(f"✓ 安装成功，发送 `{prefix}help {i}` 获取帮助~")
+                    content = content.replace(f"正在安装插件 `{i}`...\n", f"`{i}`...✓ \n")
+                    await message.edit(content)
                 else:
                     await message.edit(f"✗ 插件 {i} 安装失败~")
                 await asyncio.sleep(3)
             await message.edit(f"✓ 插件安装完成，发送 `{prefix}help` 获取帮助~")
             os.execv(sys.executable, [sys.executable] + sys.argv)
         else:
-            await message.edit(f"正在安装`{args[1]}`...")
+            await message.edit(f"正在安装插件 `{args[1]}`...")
             if await install(args[1]):
                 await message.edit(f"✓ 安装成功，发送 `{prefix}help {args[1]}` 获取帮助~")
                 if bool(args[1] in sys.modules):
