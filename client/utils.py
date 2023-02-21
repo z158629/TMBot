@@ -400,11 +400,13 @@ async def disable(client, message, __, args, ___):
             async with aiohttp.ClientSession() as session:
                 async with session.get(plist[p]['url']) as resp:
                     if resp.status == 200:
+                        text = await resp.text('utf-8')
                         with open(f'{DATADIR}/{p}.py', "w") as f:
-                            f.write(await resp.text('utf-8'))
-                        ImportPlugin(p)
-                        await asyncio.sleep(1)
-                        return True
+                            f.write(text)
+                        if await CheckFile(text, p):
+                            ImportPlugin(p)
+                            await asyncio.sleep(1)
+                            return True
 
         if args[1] == 'all':
             content = "安装插件中...\n"
